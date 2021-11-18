@@ -1,1 +1,1 @@
-web: uvicorn --factory server:create_app --host=${HOST} --port=${PORT} --proxy-headers --forwarded-allow-ips='*'
+web: uvicorn server:app --host=${HOST} --port=${PORT} --proxy-headers --forwarded-allow-ips='*'

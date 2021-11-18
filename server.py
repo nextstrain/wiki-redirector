@@ -1,26 +1,13 @@
 #!/usr/bin/env python
 import httpx
 import logging
-from functools import partial
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from os import environ
-from starlette.applications import Starlette
-from starlette.routing import Route
-from starlette.responses import RedirectResponse
 from urllib.parse import (
     quote_plus as urlescape,
     unquote_plus as urlunescape,
     urljoin)
-
-Redirect302 = partial(RedirectResponse, status_code = 302)
-
-ua = httpx.AsyncClient()
-
-logging.basicConfig(
-    level = logging.INFO,
-    format = "[%(asctime)s] %(levelname)-8s %(name)s: %(message)s",
-    datefmt = "%Y-%m-%d %H:%M:%S%z")
-
-log = logging.getLogger("wiki-redirector")
 
 
 SITE = "https://nextstrain.atlassian.net"
@@ -34,19 +21,26 @@ except KeyError:
     AUTH = None
 
 
-def create_app():
-    return Starlette(
-        routes = [
-            Route("/", homepage),
-            Route("/t/{title}", title_search) ])
+app = FastAPI()
+
+ua = httpx.AsyncClient()
+
+log = logging.getLogger("wiki-redirector")
+
+logging.basicConfig(
+    level = logging.INFO,
+    format = "[%(asctime)s] %(levelname)-8s %(name)s: %(message)s",
+    datefmt = "%Y-%m-%d %H:%M:%S%z")
 
 
-def homepage(request):
-    return Redirect302(wiki_url(f"/spaces/{SPACE}"))
+@app.get("/", response_class = RedirectResponse, status_code = 302)
+def homepage():
+    return wiki_url(f"/spaces/{SPACE}")
 
 
-async def title_search(request):
-    title = urlunescape(request.path_params["title"])
+@app.get("/t/{title}", response_class = RedirectResponse, status_code = 302)
+async def title_search(title: str):
+    title = title.replace("+", " ")
 
     log.info(f"Searching for page with title {title!r}")
 
@@ -60,9 +54,12 @@ async def title_search(request):
     results = search.json()["results"]
 
     if not results:
-        return Redirect302(wiki_url(f"/search?text={urlescape(title)}"))
+        log.info("No page found; redirecting to full wiki search")
+        return wiki_url(f"/search?text={urlescape(title)}")
 
-    return Redirect302(wiki_url(results[0]["_links"]["webui"]))
+    page = results[0]
+    log.info(f"Found page {page['title']!r} (id {page['id']}); redirecting")
+    return wiki_url(page["_links"]["webui"])
 
 
 def text_query(q):
@@ -80,4 +77,4 @@ if __name__ == "__main__":
 
     module = Path(__file__).stem
 
-    uvicorn.run(f"{module}:create_app", factory = True, reload = True)
+    uvicorn.run(f"{module}:app", reload = True)
