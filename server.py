@@ -54,6 +54,8 @@ async def title_search(title: str):
             "cql": f'space = "{SPACE}" and type = page and title ~ "{text_query(title)}"',
             "limit": 1 })
 
+    search.raise_for_status()
+
     results = search.json()["results"]
 
     if not results:
