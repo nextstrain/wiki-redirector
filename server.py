@@ -14,7 +14,7 @@ SITE = "https://nextstrain.atlassian.net"
 SPACE = "NEXTSTRAIN"
 
 try:
-    AUTH = (environ["WIKI_USER"], environ["WIKI_TOKEN"])
+    AUTH = (environ["ATLASSIAN_USER"], environ["ATLASSIAN_TOKEN"])
 except KeyError:
     # httpx will fallback to using creds from a ~/.netrc file, if available,
     # which is handy in dev.
