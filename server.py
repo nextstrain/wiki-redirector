@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import httpx
 import logging
+import logging.config
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from os import environ
@@ -27,10 +28,31 @@ ua = httpx.AsyncClient()
 
 log = logging.getLogger("wiki-redirector")
 
-logging.basicConfig(
-    level = logging.INFO,
-    format = "[%(asctime)s] %(levelname)-8s %(name)s: %(message)s",
-    datefmt = "%Y-%m-%d %H:%M:%S%z")
+LOG_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "stderr": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": "[%(asctime)s] %(levelprefix)s %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S%z",
+            "use_colors": None, # auto-detect based on isatty()
+        },
+    },
+    "handlers": {
+        "stderr": {
+            "formatter": "stderr",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+        },
+    },
+    "loggers": {
+        "": {"handlers": ["stderr"], "level": environ.get("LOG_LEVEL", "INFO")},
+        "uvicorn": {"handlers": []},
+    },
+}
+
+logging.config.dictConfig(LOG_CONFIG)
 
 
 @app.get("/", response_class = RedirectResponse, status_code = 302)
@@ -83,4 +105,4 @@ if __name__ == "__main__":
 
     module = Path(__file__).stem
 
-    uvicorn.run(f"{module}:app", reload = True)
+    uvicorn.run(f"{module}:app", reload = True, log_config = LOG_CONFIG)
