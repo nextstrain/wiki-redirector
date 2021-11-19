@@ -40,6 +40,9 @@ def homepage():
 
 @app.get("/t/{title}", response_class = RedirectResponse, status_code = 302)
 async def title_search(title: str):
+    # title is already URL-decoded, but also support "+ as space" encoding
+    # (like is used in query param values) for convenience when typing out
+    # these URLs.
     title = title.replace("+", " ")
 
     log.info(f"Searching for page with title {title!r}")
@@ -72,6 +75,7 @@ def wiki_url(path):
 
 
 if __name__ == "__main__":
+    # Dev mode when run directly.
     import uvicorn
     from pathlib import Path
 
