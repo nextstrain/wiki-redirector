@@ -26,6 +26,10 @@ First, put your Atlassian user and API token in your _~/.netrc_ file:
 
 Or define `ATLASSIAN_USER` and `ATLASSIAN_TOKEN` in your environment.
 
+Second, make sure you're running Python 3.10.1, perhaps using
+[pyenv](https://github.com/pyenv/pyenv) or
+[conda](https://docs.conda.io/en/latest/miniconda.html).
+
 Then, create and activate a `.venv/`:
 
     make venv
