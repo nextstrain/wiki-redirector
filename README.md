@@ -54,4 +54,6 @@ following information:
 None of these are (currently) sensitive.
 
 No page content is revealed.  To keep it that way, this service should never
-attempt to match user input to page content.
+attempt to even _match_ user input to page content, as that would enable an
+[oracle attack](https://en.wikipedia.org/wiki/Oracle_attack) to reveal page
+contents.
