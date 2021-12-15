@@ -69,16 +69,7 @@ async def title_search(title: str):
 
     log.info(f"Searching for page with title {title!r}")
 
-    search = await ua.get(
-        wiki_url("/rest/api/content/search"),
-        auth = AUTH,
-        params = {
-            "cql": f'space = "{SPACE}" and type = page and title ~ "{text_query(title)}"',
-            "limit": 1 })
-
-    search.raise_for_status()
-
-    results = search.json()["results"]
+    results = await search_pages(title)
 
     if not results:
         log.info("No page found; redirecting to full wiki search")
@@ -87,6 +78,23 @@ async def title_search(title: str):
     page = results[0]
     log.info(f"Found page {page['title']!r} (id {page['id']}); redirecting")
     return wiki_url(page["_links"]["webui"])
+
+
+async def search_pages(title):
+    query = f'space = "{SPACE}" and type = page and title ~ "{text_query(title)}"'
+
+    log.debug(f"Search query: {query!r}")
+
+    search = await ua.get(
+        wiki_url("/rest/api/content/search"),
+        auth = AUTH,
+        params = {
+            "cql": query,
+            "limit": 1 })
+
+    search.raise_for_status()
+
+    return search.json()["results"]
 
 
 def text_query(q):
