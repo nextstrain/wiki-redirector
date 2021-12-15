@@ -47,7 +47,7 @@ LOG_CONFIG = {
         },
     },
     "loggers": {
-        "": {"handlers": ["stderr"], "level": environ.get("LOG_LEVEL", "INFO")},
+        "": {"handlers": ["stderr"], "level": environ.get("LOG_LEVEL", "INFO").upper()},
         "uvicorn": {"handlers": []},
     },
 }
