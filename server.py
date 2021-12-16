@@ -1,7 +1,10 @@
 #!/usr/bin/env python
+import aiobotocore.session
 import httpx
+import json
 import logging
 import logging.config
+from cachetools import LRUCache
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from os import environ
@@ -21,10 +24,14 @@ except KeyError:
     # which is handy in dev.
     AUTH = None
 
+S3_BUCKET = environ.get("S3_BUCKET")
+
 
 app = FastAPI()
 
 ua = httpx.AsyncClient()
+
+boto = aiobotocore.session.get_session()
 
 log = logging.getLogger("wiki-redirector")
 
@@ -69,15 +76,59 @@ async def title_search(title: str):
 
     log.info(f"Searching for page with title {title!r}")
 
-    results = await search_pages(title)
+    if page := await do_you_remember(title):
+        log.info(f"Remembered {page['title']!r} (id {page['id']}); redirecting")
+        return wiki_url(page["_links"]["webui"])
 
-    if not results:
-        log.info("No page found; redirecting to full wiki search")
-        return wiki_url(f"/search?text={urlescape(title)}")
+    if results := await search_pages(title):
+        page = results[0]
+        log.info(f"Found page {page['title']!r} (id {page['id']}); remembering and redirecting")
+        await remember(title, page)
+        return wiki_url(page["_links"]["webui"])
 
-    page = results[0]
-    log.info(f"Found page {page['title']!r} (id {page['id']}); redirecting")
-    return wiki_url(page["_links"]["webui"])
+    log.info("No page found; redirecting to full wiki search")
+    return wiki_url(f"/search?text={urlescape(title)}")
+
+
+# Keep cache small, as we run with only 512MB of memory on Heroku.  This number
+# is arbitrary, though, and might be able to be higher.
+CACHE = LRUCache(maxsize = 42)
+
+async def do_you_remember(title):
+    if title not in CACHE:
+        if not S3_BUCKET:
+            return False
+
+        async with boto.create_client("s3") as s3:
+            try:
+                obj = await s3.get_object(Bucket = S3_BUCKET, Key = s3_key(title))
+            except s3.exceptions.NoSuchKey:
+                return False
+
+            async with obj['Body'] as body:
+                CACHE[title] = decode_json(await body.read())
+
+    return CACHE[title]
+
+
+async def remember(title, page):
+    CACHE[title] = page
+
+    if not S3_BUCKET:
+        log.info("No S3_BUCKET; will suffer amnesia later")
+        return
+
+    async with boto.create_client("s3") as s3:
+        obj = await s3.put_object(
+            Bucket = S3_BUCKET,
+            Key    = s3_key(title),
+            Body   = encode_json(page))
+
+        log.info(f"PUT s3://{S3_BUCKET}/{s3_key(title)} (ETag: {obj['ETag']})")
+
+
+def s3_key(title):
+    return f"t/{title}"
 
 
 async def search_pages(title):
@@ -104,6 +155,14 @@ def text_query(q):
 def wiki_url(path):
     relative_path = path.lstrip("/")
     return urljoin(SITE, f"/wiki/{relative_path}")
+
+
+def decode_json(x):
+    return json.loads(x)
+
+
+def encode_json(x):
+    return json.dumps(x, allow_nan = False)
 
 
 if __name__ == "__main__":
