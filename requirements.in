@@ -1,3 +1,5 @@
+aiobotocore
+cachetools
 fastapi
 httpx
 uvicorn

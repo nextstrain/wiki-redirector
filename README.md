@@ -46,6 +46,19 @@ If you need to update or add dependencies, modify
     make venv
 
 
+## Memory
+
+Redirects are remembered for link stability and speed.
+
+A small in-process LRU cache is used to remember redirects for a given title
+within the lifetime of the process.  If `S3_BUCKET` is defined in the
+environment (along with valid AWS credentials), redirects will be permanently
+remembered.
+
+This memory is important for making short links resolve consistently over time
+to the same pages.
+
+
 ## Security and privacy considerations
 
 Our wiki is private, but this web service is public, which exposes the
