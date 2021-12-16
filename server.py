@@ -69,15 +69,13 @@ async def title_search(title: str):
 
     log.info(f"Searching for page with title {title!r}")
 
-    results = await search_pages(title)
+    if results := await search_pages(title):
+        page = results[0]
+        log.info(f"Found page {page['title']!r} (id {page['id']}); redirecting")
+        return wiki_url(page["_links"]["webui"])
 
-    if not results:
-        log.info("No page found; redirecting to full wiki search")
-        return wiki_url(f"/search?text={urlescape(title)}")
-
-    page = results[0]
-    log.info(f"Found page {page['title']!r} (id {page['id']}); redirecting")
-    return wiki_url(page["_links"]["webui"])
+    log.info("No page found; redirecting to full wiki search")
+    return wiki_url(f"/search?text={urlescape(title)}")
 
 
 async def search_pages(title):
